@@ -1,0 +1,4 @@
+[
+  { "name": "Dark Alley A", "lat": 40.7128, "lng": -74.0060, "radiusKm": 0.5, "risk": "high" },
+  { "name": "Industrial Zone B", "lat": 40.7300, "lng": -73.9950, "radiusKm": 0.8, "risk": "medium" }
+]

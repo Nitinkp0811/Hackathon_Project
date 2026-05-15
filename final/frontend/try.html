@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Smart Traffic Controller Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono&display=swap');
+        
+        body { 
+            background-color: #020617; 
+            color: #f8fafc; 
+            font-family: 'Inter', sans-serif; 
+            overflow: hidden; 
+            height: 100vh; 
+            margin: 0;
+        }
+
+        .dashboard-layout { 
+            display: grid; 
+            grid-template-columns: 380px 1fr; 
+            height: 100vh; 
+            gap: 1.5rem; 
+            padding: 1.5rem; 
+        }
+
+        #visualizer-container { 
+            position: relative; 
+            background: #0f172a; 
+            border-radius: 1.5rem; 
+            border: 1px solid #1e293b; 
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        canvas { display: block; width: 100%; height: 100%; }
+
+        .glass-card { 
+            background: rgba(15, 23, 42, 0.6); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255,255,255,0.08); 
+            border-radius: 1rem; 
+        }
+
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Scrollbar styling for log */
+        #log-box::-webkit-scrollbar { width: 4px; }
+        #log-box::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-layout">
+    <div class="flex flex-col gap-4">
+        <div class="glass-card p-6">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]"></div>
+                <h1 class="text-xl font-bold tracking-tight text-white">AI TRAFFIC HUB</h1>
+            </div>
+            <p class="text-[10px] text-cyan-500 uppercase tracking-[0.2em] font-bold">Autonomous Decision System v3.1</p>
+        </div>
+
+        <div class="glass-card p-6 flex-1">
+            <h2 class="text-xs font-bold text-slate-500 mb-6 uppercase tracking-widest">Real-time Lane Density</h2>
+            <div id="sensor-container" class="space-y-6">
+                </div>
+            
+            <div class="mt-10 pt-6 border-t border-slate-800">
+                <h2 class="text-xs font-bold text-cyan-500 mb-3 uppercase tracking-widest">AI Decision Engine</h2>
+                <div id="log-box" class="text-[11px] text-slate-400 leading-relaxed h-48 overflow-y-auto font-mono bg-black/20 p-3 rounded-lg border border-white/5">
+                    <span class="text-blue-400">[SYSTEM]</span> Initializing neural layers...<br>
+                    <span class="text-blue-400">[SYSTEM]</span> Connecting to hardware sensors...
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-card p-4 flex justify-between items-center px-6">
+            <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Global Time</div>
+            <div id="clock" class="text-lg font-mono text-slate-300">00:00:00</div>
+        </div>
+    </div>
+
+    <div id="visualizer-container">
+        <canvas id="trafficCanvas"></canvas>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('trafficCanvas');
+    const ctx = canvas.getContext('2d');
+    const logBox = document.getElementById('log-box');
+
+    function resize() {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+    }
+    window.onresize = resize;
+    resize();
+
+    // System State
+    const lanes = [
+        { id: 0, name: "North", dx: 0, dy: 1, state: 'STOP', vehicles: [], density: 0 },
+        { id: 1, name: "East", dx: -1, dy: 0, state: 'STOP', vehicles: [], density: 0 },
+        { id: 2, name: "South", dx: 0, dy: -1, state: 'STOP', vehicles: [], density: 0 },
+        { id: 3, name: "West", dx: 1, dy: 0, state: 'STOP', vehicles: [], density: 0 }
+    ];
+
+    class Vehicle {
+        constructor(lane) {
+            this.lane = lane;
+            this.length = 38;
+            this.width = 20;
+            this.speed = 2 + Math.random() * 1.5;
+            this.passed = false;
+            this.isStopped = false;
+            
+            // Modern Car Palette
+            const colors = ['#f8fafc', '#38bdf8', '#818cf8', '#fb7185', '#334155'];
+            this.color = colors[Math.floor(Math.random() * colors.length)];
+            
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            
+            if (lane.name === "North") { this.x = cx - 35; this.y = -60; }
+            if (lane.name === "South") { this.x = cx + 35; this.y = canvas.height + 60; }
+            if (lane.name === "West") { this.x = -60; this.y = cy + 35; }
+            if (lane.name === "East") { this.x = canvas.width + 60; this.y = cy - 35; }
+        }
+
+        draw() {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            
+            // Rotate car
+            if (this.lane.name === "South") ctx.rotate(Math.PI);
+            if (this.lane.name === "West") ctx.rotate(-Math.PI / 2);
+            if (this.lane.name === "East") ctx.rotate(Math.PI / 2);
+
+            // Shadow
+            ctx.shadowColor = 'rgba(0,0,0,0.4)';
+            ctx.shadowBlur = 6;
+            ctx.shadowOffsetY = 4;
+
+            // Chassis
+            ctx.fillStyle = this.color;
+            this.roundRect(ctx, -this.width/2, -this.length/2, this.width, this.length, 6);
+            ctx.fill();
+
+            // Windshield/Roof
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = "rgba(15, 23, 42, 0.4)";
+            this.roundRect(ctx, -this.width/2 + 3, -this.length/6, this.width - 6, this.length/2.5, 2);
+            ctx.fill();
+
+            // Headlights
+            ctx.fillStyle = "#fff";
+            ctx.shadowColor = "#fff";
+            ctx.shadowBlur = this.isStopped ? 0 : 10;
+            ctx.fillRect(-this.width/2 + 3, this.length/2 - 2, 4, 3);
+            ctx.fillRect(this.width/2 - 7, this.length/2 - 2, 4, 3);
+
+            // Brake Lights
+            ctx.fillStyle = this.isStopped ? "#ef4444" : "#7f1d1d";
+            ctx.shadowColor = "#ef4444";
+            ctx.shadowBlur = this.isStopped ? 20 : 0;
+            ctx.fillRect(-this.width/2 + 3, -this.length/2, 4, 3);
+            ctx.fillRect(this.width/2 - 7, -this.length/2, 4, 3);
+
+            ctx.restore();
+        }
+
+        roundRect(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x+r, y); ctx.arcTo(x+w, y, x+w, y+h, r);
+            ctx.arcTo(x+w, y+h, x, y+h, r); ctx.arcTo(x, y+h, x, y, r);
+            ctx.arcTo(x, y, x+w, y, r); ctx.closePath();
+        }
+
+        update() {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const stopDist = 140;
+            let d = Math.sqrt(Math.pow(this.x - cx, 2) + Math.pow(this.y - cy, 2));
+
+            if (this.lane.state === 'STOP' && !this.passed && d < stopDist && d > stopDist - 15) {
+                this.isStopped = true;
+                return; 
+            }
+
+            this.isStopped = false;
+            this.x += this.lane.dx * this.speed;
+            this.y += this.lane.dy * this.speed;
+
+            if (d < 60) this.passed = true;
+        }
+    }
+
+    function drawMap() {
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        
+        // Road surface
+        ctx.fillStyle = "#0f172a";
+        ctx.fillRect(0,0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = "#1e293b";
+        ctx.fillRect(cx - 75, 0, 150, canvas.height); // Vert
+        ctx.fillRect(0, cy - 75, canvas.width, 150); // Horiz
+
+        // Lines
+        ctx.strokeStyle = "#334155";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([20, 20]);
+        ctx.beginPath();
+        ctx.moveTo(cx, 0); ctx.lineTo(cx, canvas.height);
+        ctx.moveTo(0, cy); ctx.lineTo(canvas.width, cy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Intersection Box
+        ctx.strokeStyle = "#475569";
+        ctx.strokeRect(cx - 75, cy - 75, 150, 150);
+
+        // Lights
+        lanes.forEach(lane => {
+            const lx = cx + (lane.dx * -120) + (lane.dy * 100);
+            const ly = cy + (lane.dy * -120) + (lane.dx * -100);
+            
+            // Housing
+            ctx.fillStyle = "#020617";
+            ctx.beginPath(); ctx.arc(lx, ly, 18, 0, Math.PI*2); ctx.fill();
+
+            // Glow
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = lane.state === 'GO' ? '#10b981' : '#ef4444';
+            ctx.fillStyle = lane.state === 'GO' ? '#10b981' : '#ef4444';
+            ctx.beginPath(); ctx.arc(lx, ly, 10, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 0;
+        });
+    }
+
+    function runAI() {
+        let heavyLane = lanes[0];
+        lanes.forEach(l => {
+            l.density = l.vehicles.filter(v => !v.passed).length;
+            if (l.density > heavyLane.density) heavyLane = l;
+        });
+
+        lanes.forEach(l => l.state = (l.id === heavyLane.id) ? 'GO' : 'STOP');
+
+        const time = new Date().toLocaleTimeString().split(' ')[0];
+        logBox.innerHTML = `<p class="mb-1"><span class="text-slate-600">[${time}]</span> <span class="text-emerald-400">DECISION:</span> ${heavyLane.name} Green</p>` + logBox.innerHTML;
+
+        document.getElementById('sensor-container').innerHTML = lanes.map(l => `
+            <div>
+                <div class="flex justify-between text-[10px] font-bold mb-2">
+                    <span class="text-slate-400 tracking-widest uppercase">${l.name} GATEWAY</span>
+                    <span class="${l.state === 'GO' ? 'text-emerald-400' : 'text-rose-500'}">${l.state}</span>
+                </div>
+                <div class="h-1.5 bg-slate-800 rounded-full">
+                    <div class="h-full bg-cyan-500 transition-all duration-700 shadow-[0_0_10px_#06b6d4]" style="width: ${Math.min(l.density * 12, 100)}%"></div>
+                </div>
+                <div class="text-[10px] text-slate-500 mt-1 font-mono">${l.density} Active Vehicles</div>
+            </div>
+        `).join('');
+    }
+
+    function mainLoop() {
+        ctx.clearRect(0,0, canvas.width, canvas.height);
+        drawMap();
+
+        // Spawn logic
+        if (Math.random() < 0.04) {
+            const l = lanes[Math.floor(Math.random()*4)];
+            l.vehicles.push(new Vehicle(l));
+        }
+
+        lanes.forEach(lane => {
+            lane.vehicles.forEach((v, idx) => {
+                v.update(); v.draw();
+                if (v.x < -100 || v.x > canvas.width+100 || v.y < -100 || v.y > canvas.height+100) {
+                    lane.vehicles.splice(idx, 1);
+                }
+            });
+        });
+
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+        requestAnimationFrame(mainLoop);
+    }
+
+    setInterval(runAI, 3000);
+    mainLoop();
+</script>
+
+</body>
+</html>

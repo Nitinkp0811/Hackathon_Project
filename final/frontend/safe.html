@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeRoute Indore 🛡️</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- 1. TOP FLOATING SEARCH BAR -->
+    <div class="search-container">
+        <div class="search-box">
+            <input type="text" id="destination-input" placeholder="Search destination in Indore...">
+            <button id="search-btn">🔍</button>
+        </div>
+        <ul id="autocomplete-results"></ul>
+        
+        <div class="floating-controls">
+            <button id="heatmap-toggle" title="Toggle Crime Heatmap">🔥</button>
+            <button id="theme-toggle" title="Toggle Dark/Light Mode">☀️</button>
+        </div>
+    </div>
+
+    <!-- 2. FULL SCREEN MAP -->
+    <div id="map"></div>
+
+    <!-- 3. BOTTOM SLIDING PANEL -->
+    <div id="route-info" class="bottom-panel hidden">
+        <div class="pull-bar"></div>
+        <div class="panel-content">
+            <p id="status-text" class="status-msg">Select a destination to find safe paths.</p>
+            
+            <!-- Safest Route Card -->
+            <div class="route-card safe">
+                <div class="route-header">
+                    <span id="safe-label">Safest Route</span>
+                    <span class="score-badge"><span id="safe-score">0</span> Risk</span>
+                </div>
+                <div class="route-details">
+                    <span>⏱️ <span id="safe-time">0</span> min</span>
+                    <span>📍 <span id="safe-dist">0</span> km</span>
+                </div>
+                <p id="safe-reason" class="reason-text"></p>
+            </div>
+
+            <!-- Shortest Route Card (Conditional) -->
+            <div id="short-stat-item" class="route-card short">
+                <div class="route-header">
+                    <span>Shortest Route</span>
+                    <span class="score-badge grey"><span id="short-score">0</span> Risk</span>
+                </div>
+                <div class="route-details">
+                    <span>⏱️ <span id="short-time">0</span> min</span>
+                    <span>📍 <span id="short-dist">0</span> km</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EMERGENCY SOS BUTTON -->
+    <button id="sos-btn" class="sos-button">🚨 SOS</button>
+
+    <!-- External Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
